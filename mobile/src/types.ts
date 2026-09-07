@@ -64,3 +64,19 @@ export const CONTACT_METHOD_LABELS: Record<ContactMethod, string> = {
   TEXT: "Text",
   OTHER: "Other",
 };
+
+export const ROLE_LABELS: Record<Role, string> = {
+  ADMIN: "Admin",
+  MINISTER: "Minister",
+  SUPPORT_STAFF: "Support staff",
+};
+
+export interface TeamUser {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  active: boolean;
+  createdAt: string;
+  _count?: { assignedPeople: number };
+}

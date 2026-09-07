@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, spacing, typography } from "../theme/theme";
 import { TextField } from "../components/TextField";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -26,10 +27,11 @@ export function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
       <View style={styles.content}>
         <Text style={typography.title}>Pastoral Care</Text>
         <Text style={[typography.body, styles.subtitle]}>Sign in to see today's visits</Text>
@@ -55,7 +57,8 @@ export function LoginScreen() {
           <PrimaryButton title="Sign in" onPress={submit} loading={loading} disabled={!email || !password} />
         </View>
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

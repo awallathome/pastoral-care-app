@@ -1,35 +1,39 @@
 // Pastoral Care App — data model
-// SQLite for local prototyping. Swap `provider` to "postgresql" and set
-// DATABASE_URL to a real Postgres connection string for production.
+// Postgres (hosted on Neon for the Vercel deployment). `url` is the pooled
+// connection string (hostname contains "-pooler") that the running app
+// uses; `directUrl` is the unpooled one Prisma CLI commands like
+// `migrate deploy` need. Both come from your Neon project's dashboard.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 // --- Access control -------------------------------------------------------
 
-enum Role {
-  ADMIN // manages users & full data access
-  MINISTER // full access to their own parishioners, including notes
-  SUPPORT_STAFF // scheduling/contact-info access only — CANNOT read/write notes
-}
+// `role` is a plain string rather than a native Postgres enum, so adding a
+// new role is a one-line change in backend/src/constants.ts instead of a
+// migration. The allowed values ("ADMIN" | "MINISTER" | "SUPPORT_STAFF")
+// live there and are validated at the API boundary (zod), not by the database.
 
 model User {
   id           String   @id @default(cuid())
   name         String
   email        String   @unique
   passwordHash String
-  role         Role
+  role         String
+  active       Boolean  @default(true) // deactivated users can't log in — see routes/users.ts
   createdAt    DateTime @default(now())
 
   assignedPeople Person[]  @relation("AssignedMinister")
   visitsLogged   Visit[]   @relation("VisitLoggedBy")
   auditEntries   AuditLog[]
+  pushTokens     PushToken[]
 }
 
 // --- Parishioner record ----------------------------------------------------
@@ -81,20 +85,9 @@ model EmergencyContact {
 
 // --- Visits / schedule -----------------------------------------------------
 
-enum VisitStatus {
-  SCHEDULED
-  COMPLETED
-  CANCELED
-  RESCHEDULED
-}
-
-enum ContactMethod {
-  IN_PERSON
-  PHONE
-  EMAIL
-  TEXT
-  OTHER
-}
+// Same story as Role above: `status` and `contactMethod` are plain strings
+// rather than native enums. Valid values live in backend/src/constants.ts
+// (VisitStatus, ContactMethod).
 
 model Visit {
   id        String   @id @default(cuid())
@@ -102,9 +95,9 @@ model Visit {
   person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   scheduledFor DateTime
-  status       VisitStatus @default(SCHEDULED)
-  contactMethod ContactMethod?  // set once the visit/contact actually happens
-  notes         String?         // SENSITIVE — access gated by role, see rbac.ts
+  status        String  @default("SCHEDULED")
+  contactMethod String? // set once the visit/contact actually happens
+  notes         String? // SENSITIVE — access gated by role, see rbac.ts
 
   alternateContactId String?
   alternateContact   EmergencyContact? @relation("VisitAlternateContact", fields: [alternateContactId], references: [id])
@@ -125,5 +118,17 @@ model AuditLog {
   action    String   // e.g. "VIEW_NOTES", "EDIT_NOTES", "VIEW_PERSON"
   personId  String?
   visitId   String?
+  createdAt DateTime @default(now())
+}
+
+// --- Push notifications ------------------------------------------------------
+
+// One row per device a user has logged in on (Expo issues a token per
+// installation, not per account) — see routes/notifications.ts.
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
   createdAt DateTime @default(now())
 }

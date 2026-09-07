@@ -1,22 +1,23 @@
-import * as SecureStore from "expo-secure-store";
+import { getItem, setItem, deleteItem } from "../lib/storage";
 
 // Point this at your backend. On a physical phone/simulator this can't be
 // "localhost" (that means the phone itself) — use your computer's LAN IP,
-// e.g. "http://192.168.1.42:4000". See README > Running on a device.
+// e.g. "http://192.168.1.42:4000". See README > Running on a device. On the
+// Vercel web build this should be set to the deployed API's URL instead.
 export const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:4000";
 
 const TOKEN_KEY = "pastoral_care_token";
 
 export async function getToken(): Promise<string | null> {
-  return SecureStore.getItemAsync(TOKEN_KEY);
+  return getItem(TOKEN_KEY);
 }
 
 export async function setToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
+  await setItem(TOKEN_KEY, token);
 }
 
 export async function clearToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await deleteItem(TOKEN_KEY);
 }
 
 export class ApiError extends Error {

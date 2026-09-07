@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
-import { Role, Visit } from "@prisma/client";
+import { Visit } from "@prisma/client";
 import { prisma } from "../db";
+import { Role } from "../constants";
 
 /**
  * Roles allowed to read/write the free-text `notes` field on a visit.

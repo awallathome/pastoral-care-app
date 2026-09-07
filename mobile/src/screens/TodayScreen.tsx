@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { colors, spacing, typography } from "../theme/theme";
@@ -7,6 +8,7 @@ import { DayAccordion } from "../components/DayAccordion";
 import { api } from "../api/client";
 import { Visit } from "../types";
 import { addDays, isSameDay, startOfDay, weekFrom } from "../lib/dates";
+import { openRoute } from "../lib/directions";
 import { RootStackParamList } from "../navigation/types";
 import { useAuth } from "../auth/AuthContext";
 
@@ -48,16 +50,30 @@ export function TodayScreen() {
 
   const visitsByDay = (day: Date) => visits.filter((v) => isSameDay(new Date(v.scheduledFor), day));
 
+  // Today's addresses, in schedule order — feeds the multi-stop "Route"
+  // button. Visits without an address (or without one on file) are
+  // skipped rather than breaking the route.
+  const todaysAddresses = visitsByDay(startOfDay(new Date()))
+    .map((v) => v.person?.address)
+    .filter((a): a is string => !!a);
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
         <View>
           <Text style={typography.title}>This week</Text>
           <Text style={typography.caption}>{user?.name}</Text>
         </View>
-        <Pressable onPress={() => navigation.navigate("AddVisit", {})} style={styles.addButton}>
-          <Text style={styles.addButtonText}>+ Add</Text>
-        </Pressable>
+        <View style={styles.headerButtons}>
+          {todaysAddresses.length > 0 && (
+            <Pressable onPress={() => openRoute(todaysAddresses)} style={styles.routeButton}>
+              <Text style={styles.routeButtonText}>Route</Text>
+            </Pressable>
+          )}
+          <Pressable onPress={() => navigation.navigate("AddVisit", {})} style={styles.addButton}>
+            <Text style={styles.addButtonText}>+ Add</Text>
+          </Pressable>
+        </View>
       </View>
 
       {loading ? (
@@ -86,7 +102,7 @@ export function TodayScreen() {
       <Pressable onPress={logout} style={styles.logout}>
         <Text style={styles.logoutText}>Sign out</Text>
       </Pressable>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -99,6 +115,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing.md,
   },
+  headerButtons: { flexDirection: "row", gap: spacing.sm },
   addButton: {
     backgroundColor: colors.accent,
     paddingHorizontal: spacing.md,
@@ -106,6 +123,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   addButtonText: { color: "#fff", fontWeight: "600" },
+  routeButton: {
+    backgroundColor: colors.accentSoft,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 20,
+  },
+  routeButtonText: { color: colors.accent, fontWeight: "600" },
   scrollContent: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl },
   error: { color: colors.danger, marginBottom: spacing.md, paddingHorizontal: spacing.sm },
   logout: { padding: spacing.md, alignItems: "center" },

@@ -10,11 +10,15 @@ import { PersonDetailScreen } from "../screens/PersonDetailScreen";
 import { VisitDetailScreen } from "../screens/VisitDetailScreen";
 import { AddVisitScreen } from "../screens/AddVisitScreen";
 import { AddPersonScreen } from "../screens/AddPersonScreen";
+import { AdminUsersScreen } from "../screens/AdminUsersScreen";
+import { useAuth } from "../auth/AuthContext";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 function MainTabs() {
+  const { user } = useAuth();
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -25,6 +29,7 @@ function MainTabs() {
     >
       <Tab.Screen name="Today" component={TodayScreen} />
       <Tab.Screen name="People" component={PeopleListScreen} />
+      {user?.role === "ADMIN" && <Tab.Screen name="Admin" component={AdminUsersScreen} options={{ title: "Team" }} />}
     </Tab.Navigator>
   );
 }

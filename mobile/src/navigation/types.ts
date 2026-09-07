@@ -9,4 +9,5 @@ export type RootStackParamList = {
 export type MainTabParamList = {
   Today: undefined;
   People: undefined;
+  Admin: undefined;
 };

@@ -19,6 +19,18 @@
       "package": "com.pastoralcare.app",
       "permissions": ["USE_BIOMETRIC", "USE_FINGERPRINT"]
     },
-    "plugins": ["expo-secure-store"]
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#2F6F5E"
+        }
+      ]
+    ]
   }
 }

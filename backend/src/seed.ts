@@ -1,6 +1,7 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { PrismaClient, Role, VisitStatus, ContactMethod } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
+import { Role, VisitStatus, ContactMethod } from "./constants";
 
 const prisma = new PrismaClient();
 
@@ -33,11 +34,23 @@ async function main() {
   const support = await prisma.user.create({
     data: { name: "Jamie Lin", email: "staff@example.com", passwordHash, role: Role.SUPPORT_STAFF },
   });
+  // Deactivated on purpose — demonstrates the admin screen's
+  // activate/deactivate control and that login correctly rejects it.
+  await prisma.user.create({
+    data: {
+      name: "Chris Doyle",
+      email: "former-staff@example.com",
+      passwordHash,
+      role: Role.SUPPORT_STAFF,
+      active: false,
+    },
+  });
 
   console.log("Demo logins (password: password123):");
   console.log(`  Admin:          ${admin.email}`);
   console.log(`  Minister:       ${minister.email}`);
   console.log(`  Support staff:  ${support.email}`);
+  console.log(`  Deactivated:    former-staff@example.com (should be refused login — see Admin tab)`);
 
   const people = await Promise.all(
     [

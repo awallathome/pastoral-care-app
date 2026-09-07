@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { Role, VisitStatus, ContactMethod } from "@prisma/client";
+import { Role, VisitStatus, ContactMethod } from "../constants";
 import { prisma } from "../db";
 import { requireRole, redactVisit, logAudit, canAccessNotes } from "../middleware/rbac";
 

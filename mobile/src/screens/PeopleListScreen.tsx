@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { colors, radii, spacing, typography } from "../theme/theme";
@@ -38,7 +39,7 @@ export function PeopleListScreen() {
   }, [people, query]);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
         <Text style={typography.title}>Parishioners</Text>
         <Pressable onPress={() => navigation.navigate("AddPerson")} style={styles.addButton}>
@@ -82,7 +83,7 @@ export function PeopleListScreen() {
           )}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
