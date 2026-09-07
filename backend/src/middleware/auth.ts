@@ -2,10 +2,15 @@ import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { AuthUser } from "../types";
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET is not set — copy .env.example to .env and set a real secret.");
+function requireJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET is not set — copy .env.example to .env and set a real secret.");
+  }
+  return secret;
 }
+
+const JWT_SECRET = requireJwtSecret();
 
 /**
  * Verifies the bearer token on every protected request and attaches the
@@ -21,8 +26,11 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = header.slice("Bearer ".length);
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthUser;
-    req.user = decoded;
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (typeof decoded === "string" || !decoded || typeof decoded !== "object") {
+      return res.status(401).json({ error: "Invalid or expired session — please log in again" });
+    }
+    req.user = decoded as unknown as AuthUser;
     next();
   } catch {
     return res.status(401).json({ error: "Invalid or expired session — please log in again" });
@@ -30,7 +38,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 }
 
 export function signToken(user: AuthUser): string {
-  return jwt.sign(user, JWT_SECRET as string, {
+  return jwt.sign(user, JWT_SECRET, {
     expiresIn: (process.env.JWT_EXPIRES_IN || "12h") as jwt.SignOptions["expiresIn"],
   });
 }
