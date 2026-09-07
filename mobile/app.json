@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Pastoral Care",
+    "slug": "pastoral-care",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#FFFFFF"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.pastoralcare.app",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Face ID protects parishioners' private visit notes."
+      }
+    },
+    "android": {
+      "package": "com.pastoralcare.app",
+      "permissions": ["USE_BIOMETRIC", "USE_FINGERPRINT"]
+    },
+    "plugins": ["expo-secure-store"]
+  }
+}
