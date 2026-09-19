@@ -8,6 +8,7 @@ import { api } from "../api/client";
 import { PersonSummary } from "../types";
 import { RootStackParamList } from "../navigation/types";
 import { useAuth } from "../auth/AuthContext";
+import { formatDate } from "../lib/dates";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -73,7 +74,7 @@ export function PeopleListScreen() {
               style={styles.row}
               onPress={() => navigation.navigate("PersonDetail", { personId: item.id })}
             >
-              <View style={{ flex: 1 }}>
+              <View style={styles.rowMain}>
                 <Text style={typography.bodyStrong}>
                   {item.firstName} {item.lastName}
                 </Text>
@@ -84,6 +85,9 @@ export function PeopleListScreen() {
                   </Text>
                 )}
               </View>
+              <Text style={styles.lastVisit} numberOfLines={2}>
+                {item.lastVisitAt ? formatDate(item.lastVisitAt) : "Not yet visited"}
+              </Text>
             </Pressable>
           )}
         />
@@ -121,10 +125,20 @@ const styles = StyleSheet.create({
   },
   listContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
   row: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.surface,
     borderRadius: radii.md,
     padding: spacing.md,
     marginBottom: spacing.sm,
+    gap: spacing.md,
+  },
+  rowMain: { flex: 1, minWidth: 0 },
+  lastVisit: {
+    ...typography.caption,
+    textAlign: "right",
+    maxWidth: 110,
+    flexShrink: 0,
   },
   flag: { color: colors.warning, fontSize: 13, fontWeight: "600", marginTop: 2 },
 });

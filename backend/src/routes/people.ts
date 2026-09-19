@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { Role } from "../constants";
+import { Role, VisitStatus } from "../constants";
 import { prisma } from "../db";
 import { requireRole, redactVisit, logAudit } from "../middleware/rbac";
 
@@ -8,6 +8,7 @@ export const peopleRouter = Router();
 
 // GET /people — the roster. Ministers/support staff typically only need
 // their own caseload day-to-day; ?mine=true filters to the caller.
+// Includes `lastVisitAt` (most recent COMPLETED visit) for the People list.
 peopleRouter.get("/", async (req, res) => {
   const mineOnly = req.query.mine === "true";
 
@@ -23,10 +24,21 @@ peopleRouter.get("/", async (req, res) => {
       notesFlag: true,
       active: true,
       assignedMinisterId: true,
+      visits: {
+        where: { status: VisitStatus.COMPLETED },
+        orderBy: { scheduledFor: "desc" },
+        take: 1,
+        select: { scheduledFor: true },
+      },
     },
   });
 
-  res.json(people);
+  res.json(
+    people.map(({ visits, ...person }) => ({
+      ...person,
+      lastVisitAt: visits[0]?.scheduledFor ?? null,
+    }))
+  );
 });
 
 // GET /people/:id — full record: demographics, family, emergency contacts,

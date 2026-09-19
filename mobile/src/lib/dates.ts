@@ -40,3 +40,12 @@ export function formatDateTime(iso: string): string {
   const d = new Date(iso);
   return `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · ${formatTime(iso)}`;
 }
+
+/** Short calendar date for list rows (e.g. "Sep 12, 2026"). */
+export function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}

@@ -19,6 +19,8 @@ export interface PersonSummary {
   notesFlag: string | null;
   active: boolean;
   assignedMinisterId: string | null;
+  /** ISO date of the most recent COMPLETED visit, or null if never visited. */
+  lastVisitAt: string | null;
 }
 
 export interface FamilyMember {
