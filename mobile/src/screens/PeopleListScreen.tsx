@@ -7,24 +7,29 @@ import { colors, radii, spacing, typography } from "../theme/theme";
 import { api } from "../api/client";
 import { PersonSummary } from "../types";
 import { RootStackParamList } from "../navigation/types";
+import { useAuth } from "../auth/AuthContext";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function PeopleListScreen() {
   const navigation = useNavigation<Nav>();
+  const { user } = useAuth();
   const [people, setPeople] = useState<PersonSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
 
+  // Ministers default to their own caseload; admin/support see the full
+  // roster so they can add and update contact info for anyone in care.
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api.get<PersonSummary[]>("/people?mine=true");
+      const path = user?.role === "MINISTER" ? "/people?mine=true" : "/people";
+      const data = await api.get<PersonSummary[]>(path);
       setPeople(data);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.role]);
 
   useFocusEffect(
     useCallback(() => {

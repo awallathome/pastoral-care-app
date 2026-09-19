@@ -15,6 +15,7 @@ export function AddPersonScreen() {
   const [email, setEmail] = useState("");
   const [notesFlag, setNotesFlag] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const save = async () => {
@@ -24,15 +25,16 @@ export function AddPersonScreen() {
       await api.post("/people", {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        address: address.trim() || undefined,
-        phone: phone.trim() || undefined,
-        email: email.trim() || undefined,
-        notesFlag: notesFlag.trim() || undefined,
+        address: address.trim() || null,
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+        notesFlag: notesFlag.trim() || null,
       });
-      navigation.goBack();
+      setSaved(true);
+      // Brief confirmation, then return so the roster refresh shows them.
+      setTimeout(() => navigation.goBack(), 600);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Couldn't save — check your connection.");
-    } finally {
       setSaving(false);
     }
   };
@@ -51,11 +53,12 @@ export function AddPersonScreen() {
         placeholder="Shown on their card to every role"
       />
       {error && <Text style={styles.error}>{error}</Text>}
+      {saved && <Text style={styles.saved}>Parishioner saved.</Text>}
       <PrimaryButton
-        title="Save parishioner"
+        title={saved ? "Saved" : "Save parishioner"}
         onPress={save}
-        loading={saving}
-        disabled={!firstName.trim() || !lastName.trim()}
+        loading={saving && !saved}
+        disabled={!firstName.trim() || !lastName.trim() || saved}
       />
     </ScrollView>
   );
@@ -65,4 +68,5 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.lg },
   error: { color: colors.danger, marginBottom: spacing.md },
+  saved: { color: colors.accent, fontWeight: "600", marginBottom: spacing.md },
 });

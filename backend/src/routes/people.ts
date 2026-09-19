@@ -53,36 +53,66 @@ peopleRouter.get("/:id", async (req, res) => {
   });
 });
 
+// Empty strings from the mobile form become null so clearing a field (or
+// leaving it blank on create) doesn't fail Zod's email check.
+const optionalText = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+  z.string().trim().nullable().optional()
+);
+const optionalEmail = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+  z.string().trim().email().nullable().optional()
+);
+
 const personSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  address: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email().optional(),
-  notesFlag: z.string().optional(),
-  assignedMinisterId: z.string().optional(),
+  address: optionalText,
+  phone: optionalText,
+  email: optionalEmail,
+  notesFlag: optionalText,
+  assignedMinisterId: z.string().optional().nullable(),
 });
 
-// POST /people — add a new parishioner to the roster.
-peopleRouter.post("/", requireRole(Role.ADMIN, Role.MINISTER), async (req, res) => {
-  const parsed = personSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+// POST /people — add a new parishioner to the roster. Open to every role:
+// support staff need to be able to capture contact info when someone enters
+// care, same as ministers.
+peopleRouter.post(
+  "/",
+  requireRole(Role.ADMIN, Role.MINISTER, Role.SUPPORT_STAFF),
+  async (req, res) => {
+    const parsed = personSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
-  const person = await prisma.person.create({ data: parsed.data });
-  res.status(201).json(person);
-});
+    // Ministers adding someone land them on their own caseload by default
+    // so the new record shows up under People → mine immediately.
+    const data = { ...parsed.data };
+    if (!data.assignedMinisterId && req.user!.role === Role.MINISTER) {
+      data.assignedMinisterId = req.user!.id;
+    }
 
-// PATCH /people/:id — edit demographics (not notes — those live on visits).
-peopleRouter.patch("/:id", requireRole(Role.ADMIN, Role.MINISTER), async (req, res) => {
-  const parsed = personSchema.partial().safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    const person = await prisma.person.create({ data });
+    res.status(201).json(person);
+  }
+);
 
-  const person = await prisma.person.update({
-    where: { id: req.params.id },
-    data: parsed.data,
-  });
-  res.json(person);
-});
+// PATCH /people/:id — edit demographics / contact info (not visit notes).
+// Every authenticated role can update contact fields so scheduling staff
+// aren't blocked when a phone number or address changes.
+peopleRouter.patch(
+  "/:id",
+  requireRole(Role.ADMIN, Role.MINISTER, Role.SUPPORT_STAFF),
+  async (req, res) => {
+    const parsed = personSchema.partial().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+    const person = await prisma.person.update({
+      where: { id: req.params.id },
+      data: parsed.data,
+    });
+    res.json(person);
+  }
+);
 
 const familyMemberSchema = z.object({
   name: z.string().min(1),

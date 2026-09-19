@@ -1,12 +1,13 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { colors, spacing, typography } from "../theme/theme";
 import { Card } from "../components/Card";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { TextField } from "../components/TextField";
 import { StatusBadge } from "../components/Badge";
-import { api } from "../api/client";
+import { api, ApiError } from "../api/client";
 import { PersonDetail, TeamUser, CONTACT_METHOD_LABELS } from "../types";
 import { RootStackParamList } from "../navigation/types";
 import { formatDateTime } from "../lib/dates";
@@ -26,6 +27,14 @@ export function PersonDetailScreen() {
   const [showReassign, setShowReassign] = useState(false);
   const [reassigning, setReassigning] = useState(false);
 
+  const [editingContact, setEditingContact] = useState(false);
+  const [phoneDraft, setPhoneDraft] = useState("");
+  const [emailDraft, setEmailDraft] = useState("");
+  const [addressDraft, setAddressDraft] = useState("");
+  const [savingContact, setSavingContact] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
+  const [contactSaved, setContactSaved] = useState(false);
+
   const canReassign = user?.role === "ADMIN" || user?.role === "MINISTER";
 
   const load = useCallback(async () => {
@@ -33,6 +42,7 @@ export function PersonDetailScreen() {
     try {
       const data = await api.get<PersonDetail>(`/people/${params.personId}`);
       setPerson(data);
+      return data;
     } finally {
       setLoading(false);
     }
@@ -53,6 +63,60 @@ export function PersonDetailScreen() {
         .catch(() => {});
     }, [canReassign])
   );
+
+  // Clear the "Saved" confirmation after a moment so it doesn't linger.
+  useEffect(() => {
+    if (!contactSaved) return;
+    const t = setTimeout(() => setContactSaved(false), 2500);
+    return () => clearTimeout(t);
+  }, [contactSaved]);
+
+  const startEditContact = () => {
+    if (!person) return;
+    setPhoneDraft(person.phone ?? "");
+    setEmailDraft(person.email ?? "");
+    setAddressDraft(person.address ?? "");
+    setContactError(null);
+    setContactSaved(false);
+    setEditingContact(true);
+  };
+
+  const cancelEditContact = () => {
+    setEditingContact(false);
+    setContactError(null);
+  };
+
+  const saveContact = async () => {
+    if (!person) return;
+    setContactError(null);
+    setContactSaved(false);
+    setSavingContact(true);
+    try {
+      const updated = await api.patch<PersonDetail>(`/people/${person.id}`, {
+        phone: phoneDraft.trim() || null,
+        email: emailDraft.trim() || null,
+        address: addressDraft.trim() || null,
+      });
+      // Merge patched fields into the loaded detail so the card updates
+      // immediately without waiting on a full reload (visits etc. stay put).
+      setPerson((prev) =>
+        prev
+          ? {
+              ...prev,
+              phone: updated.phone,
+              email: updated.email,
+              address: updated.address,
+            }
+          : prev
+      );
+      setEditingContact(false);
+      setContactSaved(true);
+    } catch (e) {
+      setContactError(e instanceof ApiError ? e.message : "Couldn't save contact info.");
+    } finally {
+      setSavingContact(false);
+    }
+  };
 
   const reassign = async (ministerId: string) => {
     if (!person) return;
@@ -81,23 +145,78 @@ export function PersonDetailScreen() {
       {person.notesFlag && <Text style={styles.flag}>{person.notesFlag}</Text>}
 
       <Card style={styles.card}>
-        <Text style={typography.sectionTitle}>Contact</Text>
-        {person.phone && (
-          <Pressable onPress={() => Linking.openURL(`tel:${person.phone}`)}>
-            <Text style={styles.link}>{person.phone}</Text>
-          </Pressable>
-        )}
-        {person.email && <Text style={typography.body}>{person.email}</Text>}
-        {person.address && (
-          <View style={styles.addressRow}>
-            <Text style={[typography.body, { flex: 1 }]}>{person.address}</Text>
-            <Pressable onPress={() => openDirections(person.address!)}>
-              <Text style={styles.link}>Directions</Text>
+        <View style={styles.contactHeader}>
+          <Text style={typography.sectionTitle}>Contact</Text>
+          {!editingContact && (
+            <Pressable onPress={startEditContact} accessibilityRole="button">
+              <Text style={styles.link}>
+                {person.phone || person.email || person.address ? "Edit" : "Add"}
+              </Text>
             </Pressable>
+          )}
+        </View>
+
+        {editingContact ? (
+          <View style={styles.contactForm}>
+            <TextField
+              label="Phone"
+              value={phoneDraft}
+              onChangeText={setPhoneDraft}
+              keyboardType="phone-pad"
+              placeholder="Mobile or home number"
+            />
+            <TextField
+              label="Email"
+              value={emailDraft}
+              onChangeText={setEmailDraft}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholder="Optional"
+            />
+            <TextField
+              label="Address"
+              value={addressDraft}
+              onChangeText={setAddressDraft}
+              placeholder="Street, city"
+            />
+            {contactError && <Text style={styles.error}>{contactError}</Text>}
+            <View style={styles.contactActions}>
+              <PrimaryButton
+                title="Cancel"
+                variant="secondary"
+                onPress={cancelEditContact}
+                disabled={savingContact}
+                style={styles.contactActionButton}
+              />
+              <PrimaryButton
+                title="Save contact"
+                onPress={saveContact}
+                loading={savingContact}
+                style={styles.contactActionButton}
+              />
+            </View>
           </View>
-        )}
-        {!person.phone && !person.email && !person.address && (
-          <Text style={typography.caption}>No contact info on file yet.</Text>
+        ) : (
+          <>
+            {person.phone && (
+              <Pressable onPress={() => Linking.openURL(`tel:${person.phone}`)}>
+                <Text style={styles.link}>{person.phone}</Text>
+              </Pressable>
+            )}
+            {person.email && <Text style={typography.body}>{person.email}</Text>}
+            {person.address && (
+              <View style={styles.addressRow}>
+                <Text style={[typography.body, { flex: 1 }]}>{person.address}</Text>
+                <Pressable onPress={() => openDirections(person.address!)}>
+                  <Text style={styles.link}>Directions</Text>
+                </Pressable>
+              </View>
+            )}
+            {!person.phone && !person.email && !person.address && (
+              <Text style={typography.caption}>No contact info on file yet.</Text>
+            )}
+            {contactSaved && <Text style={styles.savedBanner}>Contact info saved.</Text>}
+          </>
         )}
       </Card>
 
@@ -229,6 +348,22 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, paddingBottom: spacing.xl },
   flag: { color: colors.warning, fontWeight: "600", marginTop: 2, marginBottom: spacing.sm },
   card: { marginTop: spacing.md, gap: 4 },
+  contactHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: spacing.xs,
+  },
+  contactForm: { marginTop: spacing.xs },
+  contactActions: { flexDirection: "row", gap: spacing.sm },
+  contactActionButton: { flex: 1 },
+  savedBanner: {
+    marginTop: spacing.sm,
+    color: colors.accent,
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  error: { color: colors.danger, marginBottom: spacing.sm },
   link: { color: colors.accent, fontSize: 16, fontWeight: "600" },
   contactRow: { marginTop: spacing.xs },
   addressRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
