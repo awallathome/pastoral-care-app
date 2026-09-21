@@ -129,13 +129,15 @@ peopleRouter.patch(
 const familyMemberSchema = z.object({
   name: z.string().min(1),
   relationship: z.string().min(1),
-  phone: z.string().optional(),
+  phone: optionalText,
 });
+
+const ALL_ROLES = [Role.ADMIN, Role.MINISTER, Role.SUPPORT_STAFF] as const;
 
 // POST /people/:id/family — add a spouse/child/etc. Intentionally thin: we
 // record just enough to show "who's in this person's life," not a full
 // sensitive profile on the family member (see README > Handling Sensitive Data).
-peopleRouter.post("/:id/family", requireRole(Role.ADMIN, Role.MINISTER), async (req, res) => {
+peopleRouter.post("/:id/family", requireRole(...ALL_ROLES), async (req, res) => {
   const parsed = familyMemberSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
@@ -145,25 +147,81 @@ peopleRouter.post("/:id/family", requireRole(Role.ADMIN, Role.MINISTER), async (
   res.status(201).json(member);
 });
 
+peopleRouter.patch("/:id/family/:memberId", requireRole(...ALL_ROLES), async (req, res) => {
+  const parsed = familyMemberSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const existing = await prisma.familyMember.findFirst({
+    where: { id: req.params.memberId, personId: req.params.id },
+  });
+  if (!existing) return res.status(404).json({ error: "Family member not found" });
+
+  const member = await prisma.familyMember.update({
+    where: { id: existing.id },
+    data: parsed.data,
+  });
+  res.json(member);
+});
+
+peopleRouter.delete("/:id/family/:memberId", requireRole(...ALL_ROLES), async (req, res) => {
+  const existing = await prisma.familyMember.findFirst({
+    where: { id: req.params.memberId, personId: req.params.id },
+  });
+  if (!existing) return res.status(404).json({ error: "Family member not found" });
+
+  await prisma.familyMember.delete({ where: { id: existing.id } });
+  res.status(204).send();
+});
+
 const emergencyContactSchema = z.object({
   name: z.string().min(1),
-  relationship: z.string().optional(),
+  relationship: optionalText,
   phone: z.string().min(1),
-  email: z.string().email().optional(),
+  email: optionalEmail,
 });
 
 // POST /people/:id/emergency-contacts — "closest contact in case of
 // emergency like hospital visit."
-peopleRouter.post(
-  "/:id/emergency-contacts",
-  requireRole(Role.ADMIN, Role.MINISTER),
+peopleRouter.post("/:id/emergency-contacts", requireRole(...ALL_ROLES), async (req, res) => {
+  const parsed = emergencyContactSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const contact = await prisma.emergencyContact.create({
+    data: { ...parsed.data, personId: req.params.id },
+  });
+  res.status(201).json(contact);
+});
+
+peopleRouter.patch(
+  "/:id/emergency-contacts/:contactId",
+  requireRole(...ALL_ROLES),
   async (req, res) => {
-    const parsed = emergencyContactSchema.safeParse(req.body);
+    const parsed = emergencyContactSchema.partial().safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
-    const contact = await prisma.emergencyContact.create({
-      data: { ...parsed.data, personId: req.params.id },
+    const existing = await prisma.emergencyContact.findFirst({
+      where: { id: req.params.contactId, personId: req.params.id },
     });
-    res.status(201).json(contact);
+    if (!existing) return res.status(404).json({ error: "Emergency contact not found" });
+
+    const contact = await prisma.emergencyContact.update({
+      where: { id: existing.id },
+      data: parsed.data,
+    });
+    res.json(contact);
+  }
+);
+
+peopleRouter.delete(
+  "/:id/emergency-contacts/:contactId",
+  requireRole(...ALL_ROLES),
+  async (req, res) => {
+    const existing = await prisma.emergencyContact.findFirst({
+      where: { id: req.params.contactId, personId: req.params.id },
+    });
+    if (!existing) return res.status(404).json({ error: "Emergency contact not found" });
+
+    await prisma.emergencyContact.delete({ where: { id: existing.id } });
+    res.status(204).send();
   }
 );
