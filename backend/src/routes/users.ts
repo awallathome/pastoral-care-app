@@ -7,10 +7,10 @@ import { requireRole } from "../middleware/rbac";
 
 export const usersRouter = Router();
 
-// GET /users — the team roster. Ministers can list (filtered to
+// GET /users — the team roster. Any role can list (often filtered to
 // ?role=MINISTER) to populate the "reassign to" picker on a parishioner's
 // record; full management (create/deactivate/change role) is admin-only.
-usersRouter.get("/", requireRole(Role.ADMIN, Role.MINISTER), async (req, res) => {
+usersRouter.get("/", requireRole(Role.ADMIN, Role.MINISTER, Role.SUPPORT_STAFF), async (req, res) => {
   const roleFilter = typeof req.query.role === "string" ? req.query.role : undefined;
 
   const users = await prisma.user.findMany({
