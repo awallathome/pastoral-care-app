@@ -2,21 +2,23 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing, typography } from "../theme/theme";
 import { StatusBadge } from "./Badge";
-import { formatTime } from "../lib/dates";
+import { formatDateTime, formatTime } from "../lib/dates";
 import { Visit } from "../types";
 
 interface Props {
   visit: Visit;
   onPress: () => void;
+  /** Show the full date alongside the time — for lists (like "needs attention") that span multiple days. */
+  showDate?: boolean;
 }
 
-export function VisitRow({ visit, onPress }: Props) {
+export function VisitRow({ visit, onPress, showDate = false }: Props) {
   const name = visit.person ? `${visit.person.firstName} ${visit.person.lastName}` : "Parishioner";
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-      <View style={styles.timeCol}>
-        <Text style={styles.time}>{formatTime(visit.scheduledFor)}</Text>
+      <View style={[styles.timeCol, showDate && styles.timeColWide]}>
+        <Text style={styles.time}>{showDate ? formatDateTime(visit.scheduledFor) : formatTime(visit.scheduledFor)}</Text>
       </View>
       <View style={styles.mainCol}>
         <Text style={typography.bodyStrong}>{name}</Text>
@@ -44,6 +46,7 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.7 },
   timeCol: { width: 72 },
+  timeColWide: { width: 108 },
   time: { fontSize: 14, fontWeight: "600", color: colors.textSecondary },
   mainCol: { flex: 1, gap: 2 },
 });

@@ -13,6 +13,11 @@ export function addDays(d: Date, days: number): Date {
   return copy;
 }
 
+/** The instant just before `d`'s midnight — an inclusive upper bound for "everything before this day". */
+export function endOfPreviousDay(d: Date): Date {
+  return new Date(startOfDay(d).getTime() - 1);
+}
+
 /** The 7 days starting from `start` (defaults to today), each at midnight. */
 export function weekFrom(start: Date = new Date()): Date[] {
   const base = startOfDay(start);

@@ -6,12 +6,18 @@ import { requireRole, redactVisit, logAudit, canAccessNotes } from "../middlewar
 
 export const visitsRouter = Router();
 
-// GET /visits?from=ISO&to=ISO&mine=true
+// GET /visits?from=ISO&to=ISO&mine=true&status=SCHEDULED,RESCHEDULED
 // Backs the "Today" / day-of-week schedule screen. Returns each visit with
 // its person's basic contact info attached, and notes redacted per role.
+// `status` also backs the "needs attention" tab (past visits still
+// SCHEDULED/RESCHEDULED, i.e. never logged) — pass `to` with no `from` to
+// look back over all of history rather than a bounded range.
 visitsRouter.get("/", async (req, res) => {
-  const { from, to } = req.query as { from?: string; to?: string };
+  const { from, to, status } = req.query as { from?: string; to?: string; status?: string };
   const mineOnly = req.query.mine === "true";
+  const statuses = status
+    ? (status.split(",").filter((s) => s in VisitStatus) as VisitStatus[])
+    : undefined;
 
   const visits = await prisma.visit.findMany({
     where: {
@@ -24,6 +30,7 @@ visitsRouter.get("/", async (req, res) => {
           }
         : {}),
       ...(mineOnly ? { person: { assignedMinisterId: req.user!.id } } : {}),
+      ...(statuses && statuses.length > 0 ? { status: { in: statuses } } : {}),
     },
     orderBy: { scheduledFor: "asc" },
     include: {
