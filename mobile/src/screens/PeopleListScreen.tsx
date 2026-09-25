@@ -140,5 +140,5 @@ const styles = StyleSheet.create({
     maxWidth: 110,
     flexShrink: 0,
   },
-  flag: { color: colors.warning, fontSize: 13, fontWeight: "600", marginTop: 2 },
+  flag: { color: colors.statusFlag, fontSize: 13, fontWeight: "700", textTransform: "uppercase", marginTop: 2 },
 });

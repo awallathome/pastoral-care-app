@@ -778,7 +778,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: spacing.md,
   },
-  flag: { color: colors.warning, fontWeight: "600", marginTop: 2 },
+  flag: { color: colors.statusFlag, fontWeight: "700", textTransform: "uppercase", marginTop: 2 },
   flagMuted: { color: colors.textMuted, marginTop: 2, fontSize: 14 },
   card: { marginTop: spacing.md, gap: 4 },
   sectionHeader: {

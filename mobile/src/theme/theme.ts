@@ -15,6 +15,7 @@ export const colors = {
   dangerSoft: "#FBEAE9",
   warning: "#8A5A00",
   warningSoft: "#FCF0DA",
+  statusFlag: "#2798F5",
 };
 
 export const spacing = {
