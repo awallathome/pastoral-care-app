@@ -86,6 +86,11 @@ in with one of the demo accounts above.
 - **Today / this week** — a day-by-day accordion (today, tomorrow, and the
   next 5 days) showing how many visits are on each day, matching the
   "dropdowns with summaries" you described.
+- **Needs attention tab** — a tab at the top of the schedule screen for
+  visits from prior days that are still marked Scheduled/Rescheduled (i.e.
+  nobody logged what happened or moved them). The tab label shows a count
+  when there's a backlog, and tapping a visit opens the same detail screen
+  used everywhere else, so it can be logged or rescheduled from there.
 - **Visit detail** — name, contact-method chips (in person / phone / email
   / text / other), an alternate point-of-contact picker, a notes field,
   a way to schedule the next visit in the same step, and history is shown
