@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { colors, spacing, typography } from "../theme/theme";
@@ -38,6 +38,8 @@ export function VisitDetailScreen() {
   });
   const [rescheduling, setRescheduling] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState(new Date());
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -103,23 +105,30 @@ export function VisitDetailScreen() {
     }
   };
 
-  const cancelVisit = () => {
+  // Alert.alert with multiple buttons is a silent no-op on the web build
+  // (react-native-web doesn't implement it), so cancellation is an inline
+  // confirm step instead — same pattern as the reschedule form above — which
+  // also gives room for the reason field.
+  const startCancel = () => {
+    setCancelReason("");
+    setCancelling(true);
+  };
+
+  const confirmCancelVisit = async () => {
     if (!visit) return;
-    Alert.alert("Cancel this visit?", "This can't be undone, but you can always schedule a new one.", [
-      { text: "Never mind", style: "cancel" },
-      {
-        text: "Cancel visit",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await api.patch(`/visits/${visit.id}`, { status: "CANCELED" });
-            navigation.goBack();
-          } catch {
-            setError("Couldn't cancel this visit.");
-          }
-        },
-      },
-    ]);
+    setSaving(true);
+    setError(null);
+    try {
+      await api.patch(`/visits/${visit.id}`, {
+        status: "CANCELED",
+        notes: cancelReason.trim() || undefined,
+      });
+      navigation.goBack();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Couldn't cancel this visit.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading || !visit) {
@@ -145,17 +154,40 @@ export function VisitDetailScreen() {
       {isActive && (
         <Card style={styles.card}>
           <Text style={typography.sectionTitle}>Schedule</Text>
-          {!rescheduling ? (
+          {!rescheduling && !cancelling ? (
             <View style={styles.scheduleActions}>
               <PrimaryButton title="Reschedule" variant="secondary" onPress={() => setRescheduling(true)} />
-              <PrimaryButton title="Cancel visit" variant="danger" onPress={cancelVisit} />
+              <PrimaryButton title="Cancel visit" variant="danger" onPress={startCancel} />
             </View>
-          ) : (
+          ) : rescheduling ? (
             <>
               <DateTimeField label="New date & time" value={rescheduleDate} onChange={setRescheduleDate} />
               <View style={styles.scheduleActions}>
                 <PrimaryButton title="Save new time" onPress={saveReschedule} loading={saving} />
                 <PrimaryButton title="Never mind" variant="secondary" onPress={() => setRescheduling(false)} />
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={typography.caption}>
+                This can't be undone, but you can always schedule a new one. The reason goes on this
+                person's visit log.
+              </Text>
+              <TextField
+                label="Reason for cancellation (optional)"
+                value={cancelReason}
+                onChangeText={setCancelReason}
+                multiline
+                placeholder="e.g. rescheduled by request, unable to reach, no longer needed..."
+              />
+              <View style={styles.scheduleActions}>
+                <PrimaryButton
+                  title="Confirm cancellation"
+                  variant="danger"
+                  onPress={confirmCancelVisit}
+                  loading={saving}
+                />
+                <PrimaryButton title="Never mind" variant="secondary" onPress={() => setCancelling(false)} />
               </View>
             </>
           )}
@@ -231,14 +263,18 @@ export function VisitDetailScreen() {
 
       {!isActive && (
         <Card style={styles.card}>
-          <Text style={typography.sectionTitle}>How it went</Text>
+          <Text style={typography.sectionTitle}>
+            {visit.status === "CANCELED" ? "Cancellation" : "How it went"}
+          </Text>
           {visit.contactMethod && <Text style={typography.body}>Contact: {visit.contactMethod}</Text>}
           {visit.notesRestricted ? (
             <Text style={styles.restricted}>Notes hidden — ask a minister</Text>
           ) : visit.notes ? (
             <Text style={typography.body}>{visit.notes}</Text>
           ) : (
-            <Text style={typography.caption}>No notes recorded.</Text>
+            <Text style={typography.caption}>
+              {visit.status === "CANCELED" ? "No reason recorded." : "No notes recorded."}
+            </Text>
           )}
         </Card>
       )}

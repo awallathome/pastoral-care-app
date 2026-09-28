@@ -91,11 +91,15 @@ const rescheduleSchema = z.object({
   scheduledFor: z.string().datetime().optional(),
   status: z.enum(["SCHEDULED", "CANCELED", "RESCHEDULED"]).optional(),
   alternateContactId: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 // PATCH /visits/:id — cancel, reschedule, or change the alternate contact.
-// No notes here on purpose; completing a visit (below) is the only place
-// note content is written.
+// `notes` is only meant for the cancellation-reason flow (the app only
+// sends it alongside status: "CANCELED"), so a canceled visit gets a reason
+// in its log the same way a completed one gets notes from POST /complete.
+// It's still the same SENSITIVE field under the hood — redacted for
+// SUPPORT_STAFF like any other visit note — so no extra role gate here.
 visitsRouter.patch("/:id", async (req, res) => {
   const parsed = rescheduleSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
@@ -108,8 +112,13 @@ visitsRouter.patch("/:id", async (req, res) => {
       ...(parsed.data.alternateContactId !== undefined
         ? { alternateContactId: parsed.data.alternateContactId }
         : {}),
+      ...(parsed.data.notes !== undefined ? { notes: parsed.data.notes } : {}),
     },
   });
+
+  if (parsed.data.notes !== undefined) {
+    await logAudit({ userId: req.user!.id, action: "EDIT_NOTES", visitId: visit.id, personId: visit.personId });
+  }
 
   res.json(redactVisit(visit, req.user!.role));
 });
